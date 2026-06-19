@@ -147,6 +147,8 @@ public class GameWindow extends JFrame {
 	private BufferedImage plainDirt;
 	private BufferedImage blueprint;
 
+	private BufferedImage pause;
+	
 	private BufferedImage cursor0;
 	private BufferedImage cursor1;
 	private BufferedImage cursor2;
@@ -388,6 +390,9 @@ public class GameWindow extends JFrame {
 		cursorShovel = ImageIO.read(new File("cursor_shovel.png"));
 		ant_basic = ImageIO.read(new File("ant_default.png"));
 
+
+		pause = ImageIO.read(new File("pause_indicator.png"));
+		
 		plainDirt = ImageIO.read(new File("plain_dirt.png"));
 		blueprint = ImageIO.read(new File("blueprint.png"));
 
@@ -419,7 +424,7 @@ public class GameWindow extends JFrame {
 		if (tick >= 500) {
 			tick = 0;
 		}
-		if (tick % 23 == 0) {
+		if (tick % 23 == 0 && !buildMode) {
 			moveActors();
 		}
 		if (buildMode) {
@@ -450,7 +455,7 @@ public class GameWindow extends JFrame {
 			// Validate coordinates inside grid dimensional boundaries
 			if (col >= 0 && col < grid.length && row >= 0 && row < grid[0].length) {
 				// Invert the boolean value of the target cell
-				if (!toggleHistory[col][row] && !uneditable[col][row]) {
+				if (!toggleHistory[col][row] && !uneditable[col][row] && antGrid[col][row] == null) {
 					grid[col][row] = !grid[col][row];
 					if (currentTime - lastSfxTime >= 90) {
 						playWav(digSFX); // Or playWav("click.wav");
@@ -570,6 +575,9 @@ public class GameWindow extends JFrame {
 			}
 		} else {
 			g.drawImage(buildButton1, 0, 16, WIDTH, HEIGHT, null);
+		}
+		if (buildMode) {
+			g.drawImage(pause, 0, 0, WIDTH, HEIGHT, null);
 		}
 	}
 
