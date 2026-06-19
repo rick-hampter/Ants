@@ -17,7 +17,6 @@ import java.io.IOException;
 
 public class GameWindow extends JFrame {
 
-	
 	public enum cursorLooks {
 		CLICKER, SHOVEL
 	}
@@ -25,7 +24,7 @@ public class GameWindow extends JFrame {
 	enum Rotation {
 		NORTH, SOUTH, EAST, WEST
 	}
-	
+
 	public BufferedImage rotateImage(BufferedImage src, Rotation rotation) {
 		if (src == null) {
 			throw new IllegalArgumentException("Source image cannot be null.");
@@ -33,7 +32,6 @@ public class GameWindow extends JFrame {
 
 		// NORTH means no rotation; return the original image (or a shallow copy if
 		// preferred)
-
 
 		int w = src.getWidth();
 		int h = src.getHeight();
@@ -93,8 +91,6 @@ public class GameWindow extends JFrame {
 	int cols = grid.length;
 	int offset = 0;
 
-
-
 	cursorLooks Cursor = cursorLooks.CLICKER;
 	private boolean hungy = false;
 
@@ -139,6 +135,7 @@ public class GameWindow extends JFrame {
 	private boolean mouseDown = false;
 	private boolean mouseWasDown = false;
 	public boolean buildMode = false;
+	public boolean paused = false;
 	public boolean showGrid = false;
 	public boolean debugMode = false;
 
@@ -148,7 +145,7 @@ public class GameWindow extends JFrame {
 	private BufferedImage blueprint;
 
 	private BufferedImage pause;
-	
+
 	private BufferedImage cursor0;
 	private BufferedImage cursor1;
 	private BufferedImage cursor2;
@@ -169,10 +166,12 @@ public class GameWindow extends JFrame {
 	private static File digSFX = new File("dig.wav");
 
 	private BufferedImage buildButton0;
-
 	private BufferedImage buildButton1;
-
 	private BufferedImage buildButton2;
+
+	private BufferedImage pauseButton0;
+	private BufferedImage pauseButton1;
+	private BufferedImage pauseButton2;
 
 	private final Canvas canvas = new Canvas() {
 		@Override
@@ -242,53 +241,57 @@ public class GameWindow extends JFrame {
 	}
 
 	public void moveActors() {
-	    antGridHistory = new Ant[50][33];
-	    int LatestRand;
+		antGridHistory = new Ant[50][33];
+		int LatestRand;
 
-	    for (int x = 0; x < 50; x++) {
-	        for (int y = 0; y < 33; y++) {
-	            Ant ant = antGrid[x][y];
-	            if (ant != null) {
-	                LatestRand = (int) (Math.random() * 4 + 1);
-	                switch (LatestRand) {
-	                case 1: // x+1 → east
-	                    if (x + 1 < 50 && grid[x + 1][y] && antGrid[x + 1][y] == null && antGridHistory[x + 1][y] == null) {
-	                        ant.rotation = Rotation.EAST;
-	                        antGridHistory[x + 1][y] = ant;
-	                    } else {
-	                        antGridHistory[x][y] = ant;
-	                    }
-	                    break;
-	                case 2: // x-1 → west
-	                    if (x - 1 >= 0 && grid[x - 1][y] && antGrid[x - 1][y] == null && antGridHistory[x - 1][y] == null) {
-	                        ant.rotation = Rotation.WEST;
-	                        antGridHistory[x - 1][y] = ant;
-	                    } else {
-	                        antGridHistory[x][y] = ant;
-	                    }
-	                    break;
-	                case 3: // y+1 → south
-	                    if (y + 1 < 33 && grid[x][y + 1] && antGrid[x][y + 1] == null && antGridHistory[x][y + 1] == null) {
-	                        ant.rotation = Rotation.SOUTH;
-	                        antGridHistory[x][y + 1] = ant;
-	                    } else {
-	                        antGridHistory[x][y] = ant;
-	                    }
-	                    break;
-	                case 4: // y-1 → north
-	                    if (y - 1 >= 0 && grid[x][y - 1] && antGrid[x][y - 1] == null && antGridHistory[x][y - 1] == null) {
-	                        ant.rotation = Rotation.NORTH;
-	                        antGridHistory[x][y - 1] = ant;
-	                    } else {
-	                        antGridHistory[x][y] = ant;
-	                    }
-	                    break;
-	                }
-	            }
-	        }
-	    }
+		for (int x = 0; x < 50; x++) {
+			for (int y = 0; y < 33; y++) {
+				Ant ant = antGrid[x][y];
+				if (ant != null) {
+					LatestRand = (int) (Math.random() * 4 + 1);
+					switch (LatestRand) {
+					case 1: // x+1 → east
+						if (x + 1 < 50 && grid[x + 1][y] && antGrid[x + 1][y] == null
+								&& antGridHistory[x + 1][y] == null) {
+							ant.rotation = Rotation.EAST;
+							antGridHistory[x + 1][y] = ant;
+						} else {
+							antGridHistory[x][y] = ant;
+						}
+						break;
+					case 2: // x-1 → west
+						if (x - 1 >= 0 && grid[x - 1][y] && antGrid[x - 1][y] == null
+								&& antGridHistory[x - 1][y] == null) {
+							ant.rotation = Rotation.WEST;
+							antGridHistory[x - 1][y] = ant;
+						} else {
+							antGridHistory[x][y] = ant;
+						}
+						break;
+					case 3: // y+1 → south
+						if (y + 1 < 33 && grid[x][y + 1] && antGrid[x][y + 1] == null
+								&& antGridHistory[x][y + 1] == null) {
+							ant.rotation = Rotation.SOUTH;
+							antGridHistory[x][y + 1] = ant;
+						} else {
+							antGridHistory[x][y] = ant;
+						}
+						break;
+					case 4: // y-1 → north
+						if (y - 1 >= 0 && grid[x][y - 1] && antGrid[x][y - 1] == null
+								&& antGridHistory[x][y - 1] == null) {
+							ant.rotation = Rotation.NORTH;
+							antGridHistory[x][y - 1] = ant;
+						} else {
+							antGridHistory[x][y] = ant;
+						}
+						break;
+					}
+				}
+			}
+		}
 
-	    antGrid = antGridHistory;
+		antGrid = antGridHistory;
 	}
 
 	public void run() throws IOException {
@@ -390,9 +393,12 @@ public class GameWindow extends JFrame {
 		cursorShovel = ImageIO.read(new File("cursor_shovel.png"));
 		ant_basic = ImageIO.read(new File("ant_default.png"));
 
+		pauseButton0 = ImageIO.read(new File("pause0.png"));
+		pauseButton1 = ImageIO.read(new File("pause_2.png"));
+		pauseButton2 = ImageIO.read(new File("pause_3.png"));
 
 		pause = ImageIO.read(new File("pause_indicator.png"));
-		
+
 		plainDirt = ImageIO.read(new File("plain_dirt.png"));
 		blueprint = ImageIO.read(new File("blueprint.png"));
 
@@ -424,7 +430,7 @@ public class GameWindow extends JFrame {
 		if (tick >= 500) {
 			tick = 0;
 		}
-		if (tick % 23 == 0 && !buildMode) {
+		if (tick % 23 == 0 && !paused) {
 			moveActors();
 		}
 		if (buildMode) {
@@ -434,11 +440,24 @@ public class GameWindow extends JFrame {
 		}
 		long currentTime = System.currentTimeMillis();
 
+		if(mouseDown && !mouseWasDown && mouseX > 530 && mouseY > 515 && mouseX < 640 && mouseY < 630) {
+			if (paused) {
+				paused = false;
+			} else {
+				paused = true;
+			}
+			if (currentTime - lastSfxTime >= 90) {
+				playWav(uiSFX); // Or playWav("click.wav");
+				lastSfxTime = currentTime; // Reset the timer
+			}
+		}
 		if (mouseDown && !mouseWasDown && ((mouseX > 650 && mouseY > 500) && (mouseX < 775 && mouseY < 625))) {
 			if (buildMode) {
 				buildMode = false;
+				paused = false;
 			} else {
 				buildMode = true;
+				paused = true;
 			}
 			if (currentTime - lastSfxTime >= 90) {
 				playWav(uiSFX); // Or playWav("click.wav");
@@ -533,13 +552,16 @@ public class GameWindow extends JFrame {
 						g.drawImage(ant_basic, x - 4, y - 4, biggerCellsize, biggerCellsize, null);
 						break;
 					case EAST:
-						g.drawImage(rotateImage(ant_basic, Rotation.EAST), x - 4, y - 4, biggerCellsize, biggerCellsize, null);
+						g.drawImage(rotateImage(ant_basic, Rotation.EAST), x - 4, y - 4, biggerCellsize, biggerCellsize,
+								null);
 						break;
 					case SOUTH:
-						g.drawImage(rotateImage(ant_basic, Rotation.SOUTH), x - 4, y - 4, biggerCellsize, biggerCellsize, null);
+						g.drawImage(rotateImage(ant_basic, Rotation.SOUTH), x - 4, y - 4, biggerCellsize,
+								biggerCellsize, null);
 						break;
 					case WEST:
-						g.drawImage(rotateImage(ant_basic, Rotation.WEST), x - 4, y - 4, biggerCellsize, biggerCellsize, null);
+						g.drawImage(rotateImage(ant_basic, Rotation.WEST), x - 4, y - 4, biggerCellsize, biggerCellsize,
+								null);
 						break;
 					}
 				}
@@ -576,8 +598,17 @@ public class GameWindow extends JFrame {
 		} else {
 			g.drawImage(buildButton1, 0, 16, WIDTH, HEIGHT, null);
 		}
-		if (buildMode) {
+		if (buildMode || paused) {
 			g.drawImage(pause, 0, 0, WIDTH, HEIGHT, null);
+		}
+		if (!paused) {
+			if (mouseX > 530 && mouseY > 515 && mouseX < 640 && mouseY < 630) {
+				g.drawImage(pauseButton2, -4, 0, WIDTH, HEIGHT, null);
+			} else {
+				g.drawImage(pauseButton1, 0, -8, WIDTH, HEIGHT, null);
+			}
+		} else {
+			g.drawImage(pauseButton1, 0, 8, WIDTH, HEIGHT, null);
 		}
 	}
 
