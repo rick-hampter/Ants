@@ -18,7 +18,7 @@ import java.io.IOException;
 public class GameWindow extends JFrame {
 
 	public enum cursorLooks {
-		CLICKER, SHOVEL
+		CLICKER, SHOVEL, BOOT
 	}
 
 	enum Rotation {
@@ -30,27 +30,23 @@ public class GameWindow extends JFrame {
 			throw new IllegalArgumentException("Source image cannot be null.");
 		}
 
-		// NORTH means no rotation; return the original image (or a shallow copy if
-		// preferred)
-
 		int w = src.getWidth();
 		int h = src.getHeight();
 
 		AffineTransform tx = new AffineTransform();
 
-		// Calculate translation and rotation based on the enum
 		switch (rotation) {
-		case EAST: // 90 degrees clockwise
+		case EAST:
 			tx.translate(h, 0);
 			tx.rotate(Math.toRadians(90));
 			break;
 
-		case SOUTH: // 180 degrees
+		case SOUTH:
 			tx.translate(w, h);
 			tx.rotate(Math.toRadians(180));
 			break;
 
-		case WEST: // 270 degrees clockwise
+		case WEST:
 			tx.translate(0, w);
 			tx.rotate(Math.toRadians(270));
 			break;
@@ -59,15 +55,10 @@ public class GameWindow extends JFrame {
 			return src;
 		}
 
-		// TYPE_INT_ARGB is used as a safe fallback to preserve transparency if it
-		// exists
 		int newType = (src.getType() == BufferedImage.TYPE_CUSTOM) ? BufferedImage.TYPE_INT_ARGB : src.getType();
 
-		// Create the transformation operator using BILINEAR interpolation for quality
 		AffineTransformOp op = new AffineTransformOp(tx, AffineTransformOp.TYPE_BILINEAR);
 
-		// Create the destination image with swapped dimensions for 90/270 degree
-		// rotations
 		BufferedImage dest;
 		if (rotation == Rotation.EAST || rotation == Rotation.WEST) {
 			dest = new BufferedImage(h, w, newType);
@@ -98,21 +89,14 @@ public class GameWindow extends JFrame {
 		new Thread(() -> {
 			try {
 
-				// Set up the audio input stream from the file source
 				AudioInputStream audioIn = AudioSystem.getAudioInputStream(SFX);
 
-				// Get a sound clip resource line instance
 				Clip clip = AudioSystem.getClip();
 
-				// Open the audio data line stream and load it to memory
 				clip.open(audioIn);
 
-				// Play from the beginning
 				clip.start();
 
-				// Optional Listener: Automatically closes the clip line once the sound finishes
-				// playing
-				// This frees system audio channels and prevents native memory leaks
 				clip.addLineListener(event -> {
 					if (event.getType() == LineEvent.Type.STOP) {
 						clip.close();
@@ -135,6 +119,7 @@ public class GameWindow extends JFrame {
 	private boolean mouseDown = false;
 	private boolean mouseWasDown = false;
 	public boolean buildMode = false;
+	public boolean killMode = false;
 	public boolean paused = false;
 	public boolean showGrid = false;
 	public boolean debugMode = false;
@@ -152,6 +137,7 @@ public class GameWindow extends JFrame {
 	private BufferedImage cursor3;
 
 	private BufferedImage cursorShovel;
+	private BufferedImage cursorBoot;
 
 	private BufferedImage UI;
 	private static File uiSFX = new File("ui.wav");
@@ -161,6 +147,7 @@ public class GameWindow extends JFrame {
 	private BufferedImage ladder;
 
 	private BufferedImage ant_basic;
+	private static File splatSFX = new File("splat.wav");
 	private BufferedImage wall;
 	private BufferedImage floor;
 	private static File digSFX = new File("dig.wav");
@@ -172,6 +159,10 @@ public class GameWindow extends JFrame {
 	private BufferedImage pauseButton0;
 	private BufferedImage pauseButton1;
 	private BufferedImage pauseButton2;
+
+	private BufferedImage killButton0;
+	private BufferedImage killButton1;
+	private BufferedImage killButton2;
 
 	private final Canvas canvas = new Canvas() {
 		@Override
@@ -250,7 +241,7 @@ public class GameWindow extends JFrame {
 				if (ant != null) {
 					LatestRand = (int) (Math.random() * 4 + 1);
 					switch (LatestRand) {
-					case 1: // x+1 → east
+					case 1:
 						if (x + 1 < 50 && grid[x + 1][y] && antGrid[x + 1][y] == null
 								&& antGridHistory[x + 1][y] == null) {
 							ant.rotation = Rotation.EAST;
@@ -259,7 +250,7 @@ public class GameWindow extends JFrame {
 							antGridHistory[x][y] = ant;
 						}
 						break;
-					case 2: // x-1 → west
+					case 2:
 						if (x - 1 >= 0 && grid[x - 1][y] && antGrid[x - 1][y] == null
 								&& antGridHistory[x - 1][y] == null) {
 							ant.rotation = Rotation.WEST;
@@ -268,7 +259,7 @@ public class GameWindow extends JFrame {
 							antGridHistory[x][y] = ant;
 						}
 						break;
-					case 3: // y+1 → south
+					case 3:
 						if (y + 1 < 33 && grid[x][y + 1] && antGrid[x][y + 1] == null
 								&& antGridHistory[x][y + 1] == null) {
 							ant.rotation = Rotation.SOUTH;
@@ -277,7 +268,7 @@ public class GameWindow extends JFrame {
 							antGridHistory[x][y] = ant;
 						}
 						break;
-					case 4: // y-1 → north
+					case 4:
 						if (y - 1 >= 0 && grid[x][y - 1] && antGrid[x][y - 1] == null
 								&& antGridHistory[x][y - 1] == null) {
 							ant.rotation = Rotation.NORTH;
@@ -325,37 +316,6 @@ public class GameWindow extends JFrame {
 				}
 			}
 		}
-//		canvas.createBufferStrategy(2);
-//
-//		final long nsPerFrame = 1_000_000_000L / TARGET_FPS;
-//
-//		setup();
-//
-//		while (true) {
-//			long frameStart = System.nanoTime();
-//
-//			update();
-//
-//			do {
-//				Graphics2D g = (Graphics2D) canvas.getBufferStrategy().getDrawGraphics();
-//				g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-//
-//				draw(g);
-//				drawCursor(g);
-//
-//				g.dispose();
-//			} while (canvas.getBufferStrategy().contentsRestored());
-//			canvas.getBufferStrategy().show();
-//
-//			long elapsed = System.nanoTime() - frameStart;
-//			long sleepNs = nsPerFrame - elapsed;
-//			if (sleepNs > 0) {
-//				try {
-//					Thread.sleep(sleepNs / 1_000_000, (int) (sleepNs % 1_000_000));
-//				} catch (InterruptedException ignored) {
-//				}
-//			}
-//		}
 	}
 
 	private void setup() throws IOException {
@@ -391,11 +351,16 @@ public class GameWindow extends JFrame {
 		cursor1 = ImageIO.read(new File("cursor_1.png"));
 		cursor2 = ImageIO.read(new File("cursor_2.png"));
 		cursorShovel = ImageIO.read(new File("cursor_shovel.png"));
+		cursorBoot = ImageIO.read(new File("boot.png"));
 		ant_basic = ImageIO.read(new File("ant_default.png"));
 
 		pauseButton0 = ImageIO.read(new File("pause0.png"));
 		pauseButton1 = ImageIO.read(new File("pause_2.png"));
 		pauseButton2 = ImageIO.read(new File("pause_3.png"));
+
+		killButton0 = ImageIO.read(new File("kill_0.png"));
+		killButton1 = ImageIO.read(new File("kill_1.png"));
+		killButton2 = ImageIO.read(new File("kill_2.png"));
 
 		pause = ImageIO.read(new File("pause_indicator.png"));
 
@@ -416,7 +381,6 @@ public class GameWindow extends JFrame {
 
 		buildButton2 = ImageIO.read(new File("build_button_2.png"));
 		try {
-//			bgImage = ImageIO.read(new File("background.png"));
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -426,6 +390,8 @@ public class GameWindow extends JFrame {
 	private int tick = 0;
 
 	private void update() {
+		int currentCol = (mouseX - offset) / cellSize;
+		int currentRow = (mouseY - offset) / cellSize;
 		tick++;
 		if (tick >= 500) {
 			tick = 0;
@@ -435,55 +401,93 @@ public class GameWindow extends JFrame {
 		}
 		if (buildMode) {
 			Cursor = cursorLooks.SHOVEL;
+		} else if (killMode) {
+
+			Cursor = cursorLooks.BOOT;
 		} else {
+
 			Cursor = cursorLooks.CLICKER;
 		}
 		long currentTime = System.currentTimeMillis();
 
-		if(mouseDown && !mouseWasDown && mouseX > 530 && mouseY > 515 && mouseX < 640 && mouseY < 630) {
+		if (mouseDown && !mouseWasDown && killMode) {
+		    if (currentCol >= 0 && currentCol < antGrid.length && currentRow >= 0 && currentRow < antGrid[0].length) {
+		        
+		        if (antGrid[currentCol][currentRow] != null) {
+		            antGrid[currentCol][currentRow] = null;
+		            
+		            if (currentTime - lastSfxTime >= 90) {
+		                playWav(splatSFX);
+		                lastSfxTime = currentTime;
+		            }
+		        }
+		    }
+		}
+
+		if (mouseDown && !mouseWasDown && mouseX > 448 && mouseY > 568 && mouseX < 516 && mouseY < 640) {
+			if (killMode) {
+				killMode = false;
+				buildMode = false;
+			} else {
+
+				killMode = true;
+			}
+			if (currentTime - lastSfxTime >= 90) {
+				playWav(uiSFX);
+				lastSfxTime = currentTime;
+			}
+		}
+		if (mouseDown && !mouseWasDown && mouseX > 530 && mouseY > 515 && mouseX < 640 && mouseY < 630) {
 			if (paused) {
 				paused = false;
 			} else {
 				paused = true;
 			}
 			if (currentTime - lastSfxTime >= 90) {
-				playWav(uiSFX); // Or playWav("click.wav");
-				lastSfxTime = currentTime; // Reset the timer
+				playWav(uiSFX);
+				lastSfxTime = currentTime;
 			}
 		}
 		if (mouseDown && !mouseWasDown && ((mouseX > 650 && mouseY > 500) && (mouseX < 775 && mouseY < 625))) {
 			if (buildMode) {
 				buildMode = false;
+				killMode = false;
 				paused = false;
 			} else {
 				buildMode = true;
 				paused = true;
 			}
 			if (currentTime - lastSfxTime >= 90) {
-				playWav(uiSFX); // Or playWav("click.wav");
-				lastSfxTime = currentTime; // Reset the timer
+				playWav(uiSFX);
+				lastSfxTime = currentTime;
 			}
 
 		}
 
 		if (mouseDown && buildMode) {
-			// Convert raw pixel positions into 2D grid indexes
 			int col = (mouseX - offset) / cellSize;
 			int row = (mouseY - offset) / cellSize;
 
-			// Validate coordinates inside grid dimensional boundaries
 			if (col >= 0 && col < grid.length && row >= 0 && row < grid[0].length) {
-				// Invert the boolean value of the target cell
-				if (!toggleHistory[col][row] && !uneditable[col][row] && antGrid[col][row] == null) {
-					grid[col][row] = !grid[col][row];
-					if (currentTime - lastSfxTime >= 90) {
-						playWav(digSFX); // Or playWav("click.wav");
-						lastSfxTime = currentTime; // Reset the timer
-					}
-					// If you implemented the sound effect from earlier, trigger it here:
-					// playClickSound();
 
-					// 3. Cache these coordinates so this cell isn't toggled again during this drag
+				boolean isPlacingNewCell = !grid[col][row];
+
+				boolean hasAdjacentTrue = false;
+				if (isPlacingNewCell) {
+					hasAdjacentTrue = (col > 0 && grid[col - 1][row]) || (col < grid.length - 1 && grid[col + 1][row])
+							|| (row > 0 && grid[col][row - 1]) || (row < grid[0].length - 1 && grid[col][row + 1]);
+				}
+
+				boolean canToggle = !isPlacingNewCell || hasAdjacentTrue;
+
+				if (canToggle && !toggleHistory[col][row] && !uneditable[col][row] && antGrid[col][row] == null) {
+					grid[col][row] = !grid[col][row];
+
+					if (currentTime - lastSfxTime >= 90) {
+						playWav(digSFX);
+						lastSfxTime = currentTime;
+					}
+
 					toggleHistory[col][row] = true;
 				}
 			}
@@ -521,17 +525,14 @@ public class GameWindow extends JFrame {
 
 		for (int row = 0; row < rows; row++) {
 			for (int col = 0; col < cols; col++) {
-				// Calculate precise pixel positions for the current cell
 				int x = offset + (col * cellSize);
 				int y = offset + (row * cellSize);
 
-				// Draw the cell outline
-				// g.drawRect(x, y, cellSize, cellSize);
 				if (grid[col][row]) {
 					g.drawImage(floor, x, y, cellSize, cellSize, null);
 				}
 				if (row - 1 != -1 && row + 1 != 33) {
-					if (!grid[col][row - 1] && grid[col][row + 1] && !grid[col][row]) {
+					if ((grid[col][row + 1]) && !grid[col][row]) {
 						g.drawImage(wall, x, y, cellSize, cellSize, null);
 					}
 				}
@@ -539,12 +540,9 @@ public class GameWindow extends JFrame {
 		}
 		for (int row = 0; row < rows; row++) {
 			for (int col = 0; col < cols; col++) {
-				// Calculate precise pixel positions for the current cell
 				int x = offset + (col * cellSize);
 				int y = offset + (row * cellSize);
 
-				// Draw the cell outline
-				// g.drawRect(x, y, cellSize, cellSize);
 				int biggerCellsize = (int) ((int) cellSize * 1.5);
 				if (row - 1 != -1 && row + 1 != 33 && antGrid[col][row] != null) {
 					switch (antGrid[col][row].getRot()) {
@@ -573,23 +571,20 @@ public class GameWindow extends JFrame {
 		if (showGrid) {
 			for (int row = 0; row < rows; row++) {
 				for (int col = 0; col < cols; col++) {
-					// Calculate precise pixel positions for the current cell
 					int x = offset + (col * cellSize);
 					int y = offset + (row * cellSize);
 
-					// Draw the cell outline
 					g.drawRect(x, y, cellSize, cellSize);
 				}
 			}
 		}
-// 650 500 775 625
 		if (!buildMode) {
+
 			if (((mouseX > 650 && mouseY > 500) && (mouseX < 775 && mouseY < 625))) {
-				hungy = true;
 				g.drawImage(buildButton2, 0, 0, WIDTH, HEIGHT, null);
 			} else {
 				g.drawImage(buildButton0, 0, 0, WIDTH, HEIGHT, null);
-				hungy = false;
+
 			}
 			if (debugMode) {
 				g.drawString("mouseX" + mouseX, 20, 50);
@@ -598,7 +593,7 @@ public class GameWindow extends JFrame {
 		} else {
 			g.drawImage(buildButton1, 0, 16, WIDTH, HEIGHT, null);
 		}
-		if (buildMode || paused) {
+		if (paused) {
 			g.drawImage(pause, 0, 0, WIDTH, HEIGHT, null);
 		}
 		if (!paused) {
@@ -609,6 +604,21 @@ public class GameWindow extends JFrame {
 			}
 		} else {
 			g.drawImage(pauseButton1, 0, 8, WIDTH, HEIGHT, null);
+		}
+		if (!killMode) {
+			if (mouseX > 448 && mouseY > 568 && mouseX < 516 && mouseY < 640) {
+				g.drawImage(killButton1, -8, 0, WIDTH, HEIGHT, null);
+			} else {
+				g.drawImage(killButton0, -8, 0, WIDTH, HEIGHT, null);
+			}
+		} else if (killMode) {
+			g.drawImage(killButton2, -8, 0, WIDTH, HEIGHT, null);
+		}
+		if ((mouseX > 530 && mouseY > 515 && mouseX < 640 && mouseY < 630)
+				|| ((mouseX > 650 && mouseY > 500) && (mouseX < 775 && mouseY < 625))) {
+			hungy = true;
+		} else {
+			hungy = false;
 		}
 	}
 
@@ -627,25 +637,14 @@ public class GameWindow extends JFrame {
 		case SHOVEL:
 			g.drawImage(cursorShovel, mouseX, mouseY, 56, 56, null);
 			break;
+		case BOOT:
+			g.drawImage(cursorBoot, mouseX - 24, mouseY - 28, 56, 56, null);
 		default:
 			break;
 		}
 	}
 
 	public static void main(String[] args) {
-//		SwingUtilities.invokeLater(() -> {
-//			GameWindow gw = new GameWindow();
-//			gw.setVisible(true);
-//			new Thread(() -> {
-//				try {
-//					gw.run();
-//				} catch (IOException e) {
-//					// TODO Auto-generated catch block
-//					e.printStackTrace();
-//				}
-//			}).start();
-//		});
-//	}
 		SwingUtilities.invokeLater(() -> {
 			GameWindow gw = new GameWindow();
 			gw.setVisible(true);
@@ -653,7 +652,6 @@ public class GameWindow extends JFrame {
 				try {
 					gw.run();
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}).start();
