@@ -14,6 +14,8 @@ import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 public class GameWindow extends JFrame {
 
@@ -318,8 +320,30 @@ public class GameWindow extends JFrame {
 		}
 	}
 
+	private Map<Integer, BufferedImage> borderTextures = new HashMap<>();
 	private void setup() throws IOException {
+		 BufferedImage border       = ImageIO.read(new File("border.png"));
+		    BufferedImage borderCorner = ImageIO.read(new File("border_corner.png"));
 
+		    BufferedImage edgeN = border;
+		    BufferedImage edgeE = rotateImage(border, Rotation.EAST);
+		    BufferedImage edgeS = rotateImage(border, Rotation.SOUTH);
+		    BufferedImage edgeW = rotateImage(border, Rotation.WEST);
+
+		    BufferedImage cornerNE = borderCorner;
+		    BufferedImage cornerSE = rotateImage(borderCorner, Rotation.EAST);
+		    BufferedImage cornerSW = rotateImage(borderCorner, Rotation.SOUTH);
+		    BufferedImage cornerNW = rotateImage(borderCorner, Rotation.WEST);
+
+		    borderTextures.put(N, edgeN);
+		    borderTextures.put(E, edgeE);
+		    borderTextures.put(S, edgeS);
+		    borderTextures.put(W, edgeW);
+
+		    borderTextures.put(N | E, cornerNE);
+		    borderTextures.put(S | E, cornerSE);
+		    borderTextures.put(S | W, cornerSW);
+		    borderTextures.put(N | W, cornerNW);
 		uneditable[41][32] = true;
 		uneditable[42][32] = true;
 		uneditable[43][32] = true;
@@ -411,17 +435,17 @@ public class GameWindow extends JFrame {
 		long currentTime = System.currentTimeMillis();
 
 		if (mouseDown && !mouseWasDown && killMode) {
-		    if (currentCol >= 0 && currentCol < antGrid.length && currentRow >= 0 && currentRow < antGrid[0].length) {
-		        
-		        if (antGrid[currentCol][currentRow] != null) {
-		            antGrid[currentCol][currentRow] = null;
-		            
-		            if (currentTime - lastSfxTime >= 90) {
-		                playWav(splatSFX);
-		                lastSfxTime = currentTime;
-		            }
-		        }
-		    }
+			if (currentCol >= 0 && currentCol < antGrid.length && currentRow >= 0 && currentRow < antGrid[0].length) {
+
+				if (antGrid[currentCol][currentRow] != null) {
+					antGrid[currentCol][currentRow] = null;
+
+					if (currentTime - lastSfxTime >= 90) {
+						playWav(splatSFX);
+						lastSfxTime = currentTime;
+					}
+				}
+			}
 		}
 
 		if (mouseDown && !mouseWasDown && mouseX > 448 && mouseY > 568 && mouseX < 516 && mouseY < 640) {
@@ -502,6 +526,44 @@ public class GameWindow extends JFrame {
 		mouseWasDown = mouseDown;
 	}
 
+	private boolean isFloor(boolean[][] grid, int col, int row) {
+		if (col < 0 || col >= grid.length)
+			return false;
+		if (row < 0 || row >= grid[0].length)
+			return false;
+		return grid[col][row];
+	}
+
+	private static final int N = 1;
+	private static final int S = 2;
+	private static final int E = 4;
+	private static final int W = 8;
+	private static final int NE = 16;
+	private static final int NW = 32;
+	private static final int SE = 64;
+	private static final int SW = 128;
+
+	private int getNeighbourMask(boolean[][] grid, int col, int row) {
+		int mask = 0;
+		if (isFloor(grid, col, row - 1))
+			mask |= N;
+		if (isFloor(grid, col, row + 1))
+			mask |= S;
+		if (isFloor(grid, col + 1, row))
+			mask |= E;
+		if (isFloor(grid, col - 1, row))
+			mask |= W;
+		if (isFloor(grid, col + 1, row - 1))
+			mask |= NE;
+		if (isFloor(grid, col - 1, row - 1))
+			mask |= NW;
+		if (isFloor(grid, col + 1, row + 1))
+			mask |= SE;
+		if (isFloor(grid, col - 1, row + 1))
+			mask |= SW;
+		return mask;
+	}
+
 	private void draw(Graphics2D g) {
 		Point p = MouseInfo.getPointerInfo().getLocation();
 		SwingUtilities.convertPointFromScreen(p, canvas);
@@ -528,12 +590,19 @@ public class GameWindow extends JFrame {
 				int x = offset + (col * cellSize);
 				int y = offset + (row * cellSize);
 
-				if (grid[col][row]) {
+				if (isFloor(grid, col, row)) {
 					g.drawImage(floor, x, y, cellSize, cellSize, null);
 				}
 				if (row - 1 != -1 && row + 1 != 33) {
 					if ((grid[col][row + 1]) && !grid[col][row]) {
 						g.drawImage(wall, x, y, cellSize, cellSize, null);
+					}
+				}
+				if (!grid[col][row]) {
+					int mask = getNeighbourMask(grid, col, row);
+					BufferedImage border = borderTextures.get(mask);
+					if (border != null) {
+						g.drawImage(border, x, y, cellSize, cellSize, null);
 					}
 				}
 			}
