@@ -20,7 +20,7 @@ import java.util.Map;
 public class GameWindow extends JFrame {
 
 	public enum cursorLooks {
-		CLICKER, SHOVEL, BOOT
+		CLICKER, SHOVEL, BOOT, ANT
 	}
 
 	enum Rotation {
@@ -123,6 +123,7 @@ public class GameWindow extends JFrame {
 	public boolean buildMode = false;
 	public boolean killMode = false;
 	public boolean paused = false;
+	public boolean holdingAnt = false;
 	public boolean showGrid = false;
 	public boolean debugMode = false;
 
@@ -320,6 +321,11 @@ public class GameWindow extends JFrame {
 		}
 	}
 
+	private BufferedImage antButton0;
+	private BufferedImage antButton1;
+	private BufferedImage antButton2;
+	
+	
 	private Map<Integer, BufferedImage> borderTextures = new HashMap<>();
 	private void setup() throws IOException {
 		 BufferedImage border       = ImageIO.read(new File("border.png"));
@@ -385,6 +391,10 @@ public class GameWindow extends JFrame {
 		killButton0 = ImageIO.read(new File("kill_0.png"));
 		killButton1 = ImageIO.read(new File("kill_1.png"));
 		killButton2 = ImageIO.read(new File("kill_2.png"));
+		
+		antButton0 = ImageIO.read(new File("ant_button_0.png"));
+		antButton1 = ImageIO.read(new File("ant_button_1.png"));
+		antButton2 = ImageIO.read(new File("ant_button_2.png"));
 
 		pause = ImageIO.read(new File("pause_indicator.png"));
 
@@ -428,12 +438,45 @@ public class GameWindow extends JFrame {
 		} else if (killMode) {
 
 			Cursor = cursorLooks.BOOT;
-		} else {
+		} else if(holdingAnt) {
+			Cursor = cursorLooks.ANT;
+		}else {
 
 			Cursor = cursorLooks.CLICKER;
 		}
+		if(holdingAnt) {
+			buildMode = false;
+			killMode = false;
+		} else if (buildMode){
+			killMode = false;
+		}
 		long currentTime = System.currentTimeMillis();
+		if (mouseDown && !mouseWasDown && holdingAnt && !(mouseX > 450 && mouseY > 490 && mouseX < 515 && mouseY < 555)) {
+			holdingAnt = false;
+			if (currentCol >= 0 && currentCol < antGrid.length && currentRow >= 0 && currentRow < antGrid[0].length) {
 
+				if (antGrid[currentCol][currentRow] == null && grid[currentCol][currentRow]) {
+					antGrid[currentCol][currentRow] = new Ant(Rotation.NORTH);
+
+					if (currentTime - lastSfxTime >= 90) {
+						playWav(splatSFX);
+						lastSfxTime = currentTime;
+					}
+				}
+
+			}
+		}
+		if  (mouseDown && !mouseWasDown && mouseX > 450 && mouseY > 490 && mouseX < 515 && mouseY < 555) {
+			if(holdingAnt) {
+				holdingAnt = false;
+			} else {
+				holdingAnt = true;
+			}
+			if (currentTime - lastSfxTime >= 90) {
+				playWav(uiSFX);
+				lastSfxTime = currentTime;
+			}
+		}
 		if (mouseDown && !mouseWasDown && killMode) {
 			if (currentCol >= 0 && currentCol < antGrid.length && currentRow >= 0 && currentRow < antGrid[0].length) {
 
@@ -599,11 +642,26 @@ public class GameWindow extends JFrame {
 					}
 				}
 				if (!grid[col][row]) {
-					int mask = getNeighbourMask(grid, col, row);
-					BufferedImage border = borderTextures.get(mask);
-					if (border != null) {
-						g.drawImage(border, x, y, cellSize, cellSize, null);
-					}
+				    int mask = getNeighbourMask(grid, col, row);
+
+				    boolean n = (mask & N) != 0;
+				    boolean s = (mask & S) != 0;
+				    boolean e = (mask & E) != 0;
+				    boolean w = (mask & W) != 0;
+				    boolean ne = (mask & NE) != 0;
+				    boolean nw = (mask & NW) != 0;
+				    boolean se = (mask & SE) != 0;
+				    boolean sw = (mask & SW) != 0;
+
+				    if (n) g.drawImage(borderTextures.get(N), x, y, cellSize, cellSize, null);
+				    if (s) g.drawImage(borderTextures.get(S), x, y, cellSize, cellSize, null);
+				    if (e) g.drawImage(borderTextures.get(E), x, y, cellSize, cellSize, null);
+				    if (w) g.drawImage(borderTextures.get(W), x, y, cellSize, cellSize, null);
+
+				    if (ne && !n && !e) g.drawImage(borderTextures.get(N | E), x, y, cellSize, cellSize, null);
+				    if (nw && !n && !w) g.drawImage(borderTextures.get(N | W), x, y, cellSize, cellSize, null);
+				    if (se && !s && !e) g.drawImage(borderTextures.get(S | E), x, y, cellSize, cellSize, null);
+				    if (sw && !s && !w) g.drawImage(borderTextures.get(S | W), x, y, cellSize, cellSize, null);
 				}
 			}
 		}
@@ -675,13 +733,22 @@ public class GameWindow extends JFrame {
 			g.drawImage(pauseButton1, 0, 8, WIDTH, HEIGHT, null);
 		}
 		if (!killMode) {
-			if (mouseX > 448 && mouseY > 568 && mouseX < 516 && mouseY < 640) {
+			if (mouseX > 450 && mouseY > 570 && mouseX < 515 && mouseY < 640) {
 				g.drawImage(killButton1, -8, 0, WIDTH, HEIGHT, null);
 			} else {
 				g.drawImage(killButton0, -8, 0, WIDTH, HEIGHT, null);
 			}
 		} else if (killMode) {
 			g.drawImage(killButton2, -8, 0, WIDTH, HEIGHT, null);
+		}
+		if (!holdingAnt) {
+			if (mouseX > 450 && mouseY > 490 && mouseX < 515 && mouseY < 555) {
+				g.drawImage(antButton1, -8, 0, WIDTH, HEIGHT, null);
+			} else {
+				g.drawImage(antButton0, -8, 0, WIDTH, HEIGHT, null);
+			}
+		} else if (holdingAnt) {
+			g.drawImage(antButton2, -8, 0, WIDTH, HEIGHT, null);
 		}
 		if ((mouseX > 530 && mouseY > 515 && mouseX < 640 && mouseY < 630)
 				|| ((mouseX > 650 && mouseY > 500) && (mouseX < 775 && mouseY < 625))) {
@@ -708,6 +775,10 @@ public class GameWindow extends JFrame {
 			break;
 		case BOOT:
 			g.drawImage(cursorBoot, mouseX - 24, mouseY - 28, 56, 56, null);
+			break;
+		case ANT:
+			g.drawImage(ant_basic, mouseX - 8, mouseY - 8, 24, 24, null);
+			break;
 		default:
 			break;
 		}
